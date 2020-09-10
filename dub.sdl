@@ -1,0 +1,6 @@
+name "numparse"
+description "Parsing numbers library"
+authors "deviator"
+license "MIT"
+
+targetType "library"

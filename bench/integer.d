@@ -8,7 +8,7 @@ import std : uniform, tuple, Tuple, format, to, stderr;
 
 import numparse;
 
-enum Bais
+enum Base
 {
     bin = 2,
     oct = 8,
@@ -18,23 +18,23 @@ enum Bais
 
 enum N = 5_000_000;
 
-string getFormat(Bais b, bool longfmt)
+string getFormat(Base b, bool longfmt)
 {
     final switch (b)
     {
-        case Bais.bin: return longfmt ? "%032b" : "%b";
-        case Bais.oct: return longfmt ? "%011o" : "%o";
-        case Bais.dec: return longfmt ? "%010d" : "%d";
-        case Bais.hex: return longfmt ? "%08x" : "%x";
+        case Base.bin: return longfmt ? "%032b" : "%b";
+        case Base.oct: return longfmt ? "%011o" : "%o";
+        case Base.dec: return longfmt ? "%010d" : "%d";
+        case Base.hex: return longfmt ? "%08x" : "%x";
     }
 }
 
-float test(Bais bais)(bool canEmpty=false, bool longFmt=true)
+float test(Base base)(bool canEmpty=false, bool longFmt=true)
 {
     Tuple!(uint, string)[] list;
     list.length = N;
 
-    immutable fmt = getFormat(bais, longFmt);
+    immutable fmt = getFormat(base, longFmt);
 
     foreach (i; 0 .. N)
     {
@@ -53,7 +53,7 @@ float test(Bais bais)(bool canEmpty=false, bool longFmt=true)
     foreach (v; list)
     {
         uint tmp;
-        auto err = parseUintNumber!(bais)(tmp, v[1]);
+        auto err = parseUintNumber!(base)(tmp, v[1]);
         if (err != ParseError.none)
             throw new Exception("parse error: %s".format(err));
         checkValid(v[0], tmp, v[1]);
@@ -64,14 +64,14 @@ float test(Bais bais)(bool canEmpty=false, bool longFmt=true)
     foreach (v; list)
     {
         uint tmp;
-        if (v[1].length) tmp = v[1].to!uint(cast(int)bais);
+        if (v[1].length) tmp = v[1].to!uint(cast(int)base);
         checkValid(v[0], tmp, v[1]);
     }
     t1.stop();
 
     const t0f = cast(float)t0.peek().total!"hnsecs";
 
-    stderr.writeln("Bais: ", bais, " canEmpty: ", canEmpty, " longFmt: ", longFmt);
+    stderr.writeln("Base: ", base, " canEmpty: ", canEmpty, " longFmt: ", longFmt);
     stderr.writeln("numparse: ", t0.peek());
     stderr.writeln("std impl: ", t1.peek());
     const win = t1.peek().total!"hnsecs" / t0f;
@@ -98,7 +98,7 @@ void main()
 
     foreach (pp; params)
     {
-        static foreach (b; EnumMembers!Bais)
+        static foreach (b; EnumMembers!Base)
         {
             swin += test!b(pp.expand);
             k++;

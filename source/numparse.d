@@ -13,12 +13,12 @@ enum ParseError
 }
 
 pure @nogc nothrow @trusted
-ParseError parseUintNumber(int bais, T)(ref T dst, scope const(char)[] str, uint* pow=null)
+ParseError parseUintNumber(int base, T)(ref T dst, scope const(char)[] str, uint* pow=null)
     if (isIntegral!T && isUnsigned!T)
 {
     ulong result;
 
-    static immutable tbl = buildSymbolTr(bais);
+    static immutable tbl = buildSymbolTr(base);
     if (str.length == 0)
     {
         dst = 0;
@@ -31,7 +31,7 @@ ParseError parseUintNumber(int bais, T)(ref T dst, scope const(char)[] str, uint
     {
         const v = tbl[c];
         if (v == -1) return ParseError.wrongSymbol;
-        result = (result + v) * bais;
+        result = (result + v) * base;
         i++;
     }
     const v = tbl[str[$-1]];
@@ -43,7 +43,7 @@ ParseError parseUintNumber(int bais, T)(ref T dst, scope const(char)[] str, uint
 
     version (checkfullstrlength)
     {
-        static immutable ms = maxSymbols!(bais, T);
+        static immutable ms = maxSymbols!(base, T);
         if (i > ms) return ParseError.valueLimit;
     }
 
@@ -56,33 +56,33 @@ unittest
 {
     import std : enforce, format, filter, map, array, AliasSeq;
 
-    void testSuccessParse(int bais, T)(string ostr, T need, size_t line=__LINE__)
+    void testSuccessParse(int base, T)(string ostr, T need, size_t line=__LINE__)
     {
         T val;
         const str = ostr.filter!"a!='_'".map!"cast(char)a".array;
-        const err = parseUintNumber!bais(val, str);
+        const err = parseUintNumber!base(val, str);
         enforce (err == ParseError.none,
-                 new Exception(format!"parse fails for '%s' with bais %d and type '%s': %s"
-                                        (str, bais, T.stringof, err), __FILE__, line));
+                 new Exception(format!"parse fails for '%s' with base %d and type '%s': %s"
+                                        (str, base, T.stringof, err), __FILE__, line));
         enforce (val == need,
-                 new Exception(format!"wrong value for '%s' with bais %d and type '%s': %s (need %s)"
-                                        (str, bais, T.stringof, val, need), __FILE__, line));
+                 new Exception(format!"wrong value for '%s' with base %d and type '%s': %s (need %s)"
+                                        (str, base, T.stringof, val, need), __FILE__, line));
     }
 
-    void testFailureParse(int bais, T)(string ostr, ParseError need, size_t line=__LINE__)
+    void testFailureParse(int base, T)(string ostr, ParseError need, size_t line=__LINE__)
     {
         T val;
         const str = ostr.filter!"a!='_'".map!"cast(char)a".array;
-        const err = parseUintNumber!bais(val, str);
+        const err = parseUintNumber!base(val, str);
         enforce (err == need,
-                 new Exception(format!"parse return wrong error for '%s' with bais %d and type '%s': %s (need %s)"
-                                        (str, bais, T.stringof, err, need), __FILE__, line));
+                 new Exception(format!"parse return wrong error for '%s' with base %d and type '%s': %s (need %s)"
+                                        (str, base, T.stringof, err, need), __FILE__, line));
     }
 
-    static immutable baises = [2, 8, 10, 16];
+    static immutable bases = [2, 8, 10, 16];
     alias TYPES = AliasSeq!(ubyte, ushort, uint, ulong);
 
-    static foreach (b; baises)
+    static foreach (b; bases)
     {
         static foreach (T; TYPES)
         {
@@ -177,7 +177,7 @@ unittest
 }
 
 pure @nogc nothrow @trusted
-ParseError parseIntNumber(int bais, T)(ref T dst, scope const(char)[] str, uint* pow=null)
+ParseError parseIntNumber(int base, T)(ref T dst, scope const(char)[] str, uint* pow=null)
     if (isIntegral!T && isSigned!T)
 {
     if (str.length == 0)
@@ -198,7 +198,7 @@ ParseError parseIntNumber(int bais, T)(ref T dst, scope const(char)[] str, uint*
         s = 1;
     }
     Unsigned!T result;
-    const r = parseUintNumber!bais(result, str[s..$], pow);
+    const r = parseUintNumber!base(result, str[s..$], pow);
     if (r != ParseError.none) return r;
     dst = (cast(T)result) * k;
     return ParseError.none;
@@ -222,7 +222,7 @@ unittest
 }
 
 pure @nogc nothrow @trusted
-ParseError parseSimpleFloatNumber(int bais, T)(ref T dst, scope const(char)[] str, char sep='.')
+ParseError parseSimpleFloatNumber(int base, T)(ref T dst, scope const(char)[] str, char sep='.')
     if (isFloatingPoint!T)
 {
     if (str.length == 0)
@@ -253,7 +253,7 @@ ParseError parseSimpleFloatNumber(int bais, T)(ref T dst, scope const(char)[] st
     ulong c;
     if (sp > 0)
     {
-        const r = parseUintNumber!bais(c, str[s..sp]);
+        const r = parseUintNumber!base(c, str[s..sp]);
         if (r != ParseError.none) return r;
     }
 
@@ -264,10 +264,10 @@ ParseError parseSimpleFloatNumber(int bais, T)(ref T dst, scope const(char)[] st
     {
         uint pow;
         ulong f;
-        auto r2 = parseUintNumber!bais(f, str[sp..$], &pow);
+        auto r2 = parseUintNumber!base(f, str[sp..$], &pow);
         if (r2 != ParseError.none) return r2;
         T div = 1;
-        foreach (i; 0 .. pow) div *= bais;
+        foreach (i; 0 .. pow) div *= base;
         frac = f / div;
     }
     dst = (c + frac) * k;
@@ -278,25 +278,25 @@ unittest
 {
     import std : enforce, format, filter, map, array, AliasSeq, abs;
 
-    void testSuccessParse(int bais, T)(string str, T need, size_t line=__LINE__)
+    void testSuccessParse(int base, T)(string str, T need, size_t line=__LINE__)
     {
         T val;
-        const err = parseSimpleFloatNumber!bais(val, str);
+        const err = parseSimpleFloatNumber!base(val, str);
         enforce (err == ParseError.none,
-                 new Exception(format!"parse fails for '%s' with bais %d and type '%s': %s"
-                                        (str, bais, T.stringof, err), __FILE__, line));
+                 new Exception(format!"parse fails for '%s' with base %d and type '%s': %s"
+                                        (str, base, T.stringof, err), __FILE__, line));
         enforce (abs(val - need) < T.epsilon * 8,
-                 new Exception(format!"wrong value for '%s' with bais %d and type '%s': %s (need %s)"
-                                        (str, bais, T.stringof, val, need), __FILE__, line));
+                 new Exception(format!"wrong value for '%s' with base %d and type '%s': %s (need %s)"
+                                        (str, base, T.stringof, val, need), __FILE__, line));
     }
 
-    void testFailureParse(int bais, T)(string str, ParseError need, size_t line=__LINE__)
+    void testFailureParse(int base, T)(string str, ParseError need, size_t line=__LINE__)
     {
         T val;
-        const err = parseSimpleFloatNumber!bais(val, str);
+        const err = parseSimpleFloatNumber!base(val, str);
         enforce (err == need,
-                 new Exception(format!"parse return wrong error for '%s' with bais %d and type '%s': %s (need %s)"
-                                        (str, bais, T.stringof, err, need), __FILE__, line));
+                 new Exception(format!"parse return wrong error for '%s' with base %d and type '%s': %s (need %s)"
+                                        (str, base, T.stringof, err, need), __FILE__, line));
     }
 
     testSuccessParse!(10, float)("", 0.0);
@@ -360,7 +360,7 @@ unittest
 }
 
 pure @nogc nothrow @trusted
-ParseError parseUintNumbers(int bais, T)(T[] dst, scope const(char)[] str, char splt)
+ParseError parseUintNumbers(int base, T)(T[] dst, scope const(char)[] str, char splt)
 {
     if (str.length == 0) return ParseError.none;
 
@@ -375,7 +375,7 @@ ParseError parseUintNumbers(int bais, T)(T[] dst, scope const(char)[] str, char 
         {
             if (s < e)
             {
-                const r = parseUintNumber!bais(dst[i], str[s..e]);
+                const r = parseUintNumber!base(dst[i], str[s..e]);
                 if (r != ParseError.none) return r;
             }
             i++;
@@ -385,7 +385,7 @@ ParseError parseUintNumbers(int bais, T)(T[] dst, scope const(char)[] str, char 
     }
     if (s < str.length)
     {
-        const r = parseUintNumber!bais(dst[i], str[s..$]);
+        const r = parseUintNumber!base(dst[i], str[s..$]);
         if (r != ParseError.none) return r;
     }
 
@@ -396,17 +396,17 @@ unittest
 {
     import std : enforce, format, filter, map, array, AliasSeq;
 
-    void testSuccessParse(int bais, T)(string str, char splt, T[] need, string file=__FILE__, size_t line=__LINE__)
+    void testSuccessParse(int base, T)(string str, char splt, T[] need, string file=__FILE__, size_t line=__LINE__)
     {
         T[] val;
         val.length = need.length;
-        const err = parseUintNumbers!bais(val, str, splt);
+        const err = parseUintNumbers!base(val, str, splt);
         enforce (err == ParseError.none,
-                 new Exception(format!"parse fails for '%s' with bais %d and type '%s': %s"
-                                        (str, bais, T.stringof, err), file, line));
+                 new Exception(format!"parse fails for '%s' with base %d and type '%s': %s"
+                                        (str, base, T.stringof, err), file, line));
         enforce (val == need,
-                 new Exception(format!"wrong value for '%s' with bais %d and type '%s': %s (need %s)"
-                                        (str, bais, T.stringof, val, need), file, line));
+                 new Exception(format!"wrong value for '%s' with base %d and type '%s': %s (need %s)"
+                                        (str, base, T.stringof, val, need), file, line));
     }
 
     testSuccessParse!(10, ubyte)("...", '.', [0, 0, 0, 0]);
@@ -427,12 +427,12 @@ unittest
 
 private:
 
-size_t maxSymbols(int bais, T)()
+size_t maxSymbols(int base, T)()
 {
     enum TS = T.sizeof;
     enum TSb = TS * 8;
     import std.math;
-    return cast(size_t)ceil(TSb / log2(bais));
+    return cast(size_t)ceil(TSb / log2(base));
 }
 
 unittest
@@ -459,14 +459,14 @@ unittest
 }
 
 pure @nogc nothrow @safe
-byte[ubyte.max] buildSymbolTr(int bais)
+byte[ubyte.max] buildSymbolTr(int base)
 {
-    if (bais < 2 || bais > 16) assert(0, "unsupported bais");
+    if (base < 2 || base > 16) assert(0, "unsupported base");
     import std.uni : toLower, toUpper;
     typeof(return) r;
     static immutable char[] sym = "0123456789abcdef";
     r[] = -1;
-    foreach (i; 0 .. bais)
+    foreach (i; 0 .. base)
     {
         r[cast(ubyte)(sym[i].toLower)] = cast(byte)i;
         r[cast(ubyte)(sym[i].toUpper)] = cast(byte)i;
